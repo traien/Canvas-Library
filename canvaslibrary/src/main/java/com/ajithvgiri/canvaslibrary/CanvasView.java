@@ -2,10 +2,17 @@ package com.ajithvgiri.canvaslibrary;
 
 import android.content.Context;
 import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
+import android.graphics.BitmapShader;
 import android.graphics.Canvas;
 import android.graphics.Color;
 import android.graphics.Paint;
 import android.graphics.Path;
+import android.graphics.PorterDuff;
+import android.graphics.PorterDuffXfermode;
+import android.graphics.Shader;
+import android.util.AttributeSet;
+import android.util.TypedValue;
 import android.view.MotionEvent;
 import android.view.View;
 
@@ -15,98 +22,153 @@ import android.view.View;
 
 public class CanvasView extends View {
 
-    private static final float TOLERANCE = 5;
-    public int width;
-    public int height;
-    Context context;
-    private Bitmap mBitmap;
-    private Canvas mCanvas;
-    private Path mPath;
-    private Paint mPaint;
-    private float mX, mY;
+    //drawing path
+    private Path drawPath;
+    //drawing and canvas paint
+    private Paint drawPaint, canvasPaint;
+    //initial color
+    private int paintColor = 0xFF660000, paintAlpha = 255;
+    //canvas
+    private Canvas drawCanvas;
+    //canvas bitmap
+    private Bitmap canvasBitmap;
+    //brush sizes
+    private float brushSize, lastBrushSize;
+    //erase flag
+    public boolean erase=false;
 
-    public CanvasView(Context c) {
-        super(c);
-        context = c;
-
-        // we set a new Path
-        mPath = new Path();
-
-        // and we set a new Paint with the desired attributes
-        mPaint = new Paint();
-        mPaint.setAntiAlias(true);
-        mPaint.setColor(Color.BLACK);
-        mPaint.setStyle(Paint.Style.STROKE);
-        mPaint.setStrokeJoin(Paint.Join.ROUND);
-        mPaint.setStrokeWidth(4f);
+    public CanvasView(Context context){
+        super(context);
+        setupDrawing();
     }
 
-    // override onSizeChanged
+    //setup drawing
+    private void setupDrawing(){
+
+        //prepare for drawing and setup paint stroke properties
+        brushSize = 4f;
+        lastBrushSize = brushSize;
+        drawPath = new Path();
+        drawPaint = new Paint();
+        drawPaint.setColor(Color.BLUE);
+        drawPaint.setAntiAlias(true);
+        drawPaint.setStrokeWidth(brushSize);
+        drawPaint.setStyle(Paint.Style.STROKE);
+        drawPaint.setStrokeJoin(Paint.Join.ROUND);
+        drawPaint.setStrokeCap(Paint.Cap.ROUND);
+        canvasPaint = new Paint(Paint.DITHER_FLAG);
+    }
+
+    //size assigned to view
     @Override
     protected void onSizeChanged(int w, int h, int oldw, int oldh) {
         super.onSizeChanged(w, h, oldw, oldh);
-
-        // your Canvas will draw onto the defined Bitmap
-        mBitmap = Bitmap.createBitmap(w, h, Bitmap.Config.ARGB_8888);
-        mCanvas = new Canvas(mBitmap);
+        canvasBitmap = Bitmap.createBitmap(w, h, Bitmap.Config.ARGB_8888);
+        drawCanvas = new Canvas(canvasBitmap);
     }
 
-    // override onDraw
+    //draw the view - will be called after touch event
     @Override
     protected void onDraw(Canvas canvas) {
-        super.onDraw(canvas);
-        // draw the mPath with the mPaint on the canvas when onDraw
-        canvas.drawPath(mPath, mPaint);
+        canvas.drawBitmap(canvasBitmap, 0, 0, canvasPaint);
+        canvas.drawPath(drawPath, drawPaint);
     }
 
-    // when ACTION_DOWN start touch according to the x,y values
-    private void startTouch(float x, float y) {
-        mPath.moveTo(x, y);
-        mX = x;
-        mY = y;
+    //register user touches as drawing action
+    @Override
+    public boolean onTouchEvent(MotionEvent event) {
+        float touchX = event.getX();
+        float touchY = event.getY();
+        //respond to down, move and up events
+        switch (event.getAction()) {
+            case MotionEvent.ACTION_DOWN:
+                drawPath.moveTo(touchX, touchY);
+                break;
+            case MotionEvent.ACTION_MOVE:
+                drawPath.lineTo(touchX, touchY);
+                break;
+            case MotionEvent.ACTION_UP:
+                drawPath.lineTo(touchX, touchY);
+                drawCanvas.drawPath(drawPath, drawPaint);
+                drawPath.reset();
+                break;
+            default:
+                return false;
+        }
+        //redraw
+        invalidate();
+        return true;
+
     }
 
-    // when ACTION_MOVE move touch according to the x,y values
-    private void moveTouch(float x, float y) {
-        float dx = Math.abs(x - mX);
-        float dy = Math.abs(y - mY);
-        if (dx >= TOLERANCE || dy >= TOLERANCE) {
-            mPath.quadTo(mX, mY, (x + mX) / 2, (y + mY) / 2);
-            mX = x;
-            mY = y;
+    //update color
+    public void setColor(String newColor){
+        invalidate();
+        //check whether color value or pattern name
+        if(newColor.startsWith("#")){
+            paintColor = Color.parseColor(newColor);
+            drawPaint.setColor(paintColor);
+            drawPaint.setShader(null);
+        }
+        else{
+            //pattern
+            int patternID = getResources().getIdentifier(
+                    newColor, "drawable", "com.example.drawingfun");
+            //decode
+            Bitmap patternBMP = BitmapFactory.decodeResource(getResources(), patternID);
+            //create shader
+            BitmapShader patternBMPshader = new BitmapShader(patternBMP,
+                    Shader.TileMode.REPEAT, Shader.TileMode.REPEAT);
+            //color and shader
+            drawPaint.setColor(0xFFFFFFFF);
+            drawPaint.setShader(patternBMPshader);
         }
     }
 
-    public void clearCanvas() {
-        mPath.reset();
+    //set brush size
+    public void setBrushSize(float newSize){
+        float pixelAmount = TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP,
+                newSize, getResources().getDisplayMetrics());
+        brushSize=pixelAmount;
+        drawPaint.setStrokeWidth(brushSize);
+    }
+
+    //get and set last brush size
+    public void setLastBrushSize(float lastSize){
+        lastBrushSize=lastSize;
+    }
+    public float getLastBrushSize(){
+        return lastBrushSize;
+    }
+
+    //set erase true or false
+    public void setErase(boolean isErase){
+        erase=isErase;
+        if(erase) {
+            drawPaint.setXfermode(new PorterDuffXfermode(PorterDuff.Mode.CLEAR));
+            drawPaint.setStrokeWidth(12f);
+        }
+        else {
+            drawPaint.setXfermode(null);
+            drawPaint.setStrokeWidth(4f);
+        }
+    }
+
+    //start new drawing
+    public void startNew(){
+        drawCanvas.drawColor(0, PorterDuff.Mode.CLEAR);
         invalidate();
     }
 
-    // when ACTION_UP stop touch
-    private void upTouch() {
-        mPath.lineTo(mX, mY);
+    //return current alpha
+    public int getPaintAlpha(){
+        return Math.round((float)paintAlpha/255*100);
     }
 
-    //override the onTouchEvent
-    @Override
-    public boolean onTouchEvent(MotionEvent event) {
-        float x = event.getX();
-        float y = event.getY();
-
-        switch (event.getAction()) {
-            case MotionEvent.ACTION_DOWN:
-                startTouch(x, y);
-                invalidate();
-                break;
-            case MotionEvent.ACTION_MOVE:
-                moveTouch(x, y);
-                invalidate();
-                break;
-            case MotionEvent.ACTION_UP:
-                upTouch();
-                invalidate();
-                break;
-        }
-        return true;
+    //set alpha
+    public void setPaintAlpha(int newAlpha){
+        paintAlpha=Math.round((float)newAlpha/100*255);
+        drawPaint.setColor(paintColor);
+        drawPaint.setAlpha(paintAlpha);
     }
 }

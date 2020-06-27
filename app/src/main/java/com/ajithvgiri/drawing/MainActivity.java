@@ -22,6 +22,7 @@ public class MainActivity extends AppCompatActivity {
     private CanvasView canvasView;
     private RelativeLayout parentView;
 
+
     private BottomNavigationView.OnNavigationItemSelectedListener mOnNavigationItemSelectedListener
             = new BottomNavigationView.OnNavigationItemSelectedListener() {
 
@@ -29,7 +30,8 @@ public class MainActivity extends AppCompatActivity {
         public boolean onNavigationItemSelected(@NonNull MenuItem item) {
             switch (item.getItemId()) {
                 case R.id.navigation_delete:
-                    canvasView.clearCanvas();
+//                    canvasView.eraser();
+                    canvasView.setErase(true) ;
                     break;
                 case R.id.navigation_save:
                     parentView.setDrawingCacheEnabled(true);
@@ -38,6 +40,10 @@ public class MainActivity extends AppCompatActivity {
                     } else {
                         saveCanvas();
                     }
+                    break;
+                case R.id.navigation_pencil:
+//                    canvasView.draw();
+                    canvasView.setErase(false);
                     break;
             }
             return false;
