@@ -146,11 +146,11 @@ public class CanvasView extends View {
         erase=isErase;
         if(erase) {
             drawPaint.setXfermode(new PorterDuffXfermode(PorterDuff.Mode.CLEAR));
-            drawPaint.setStrokeWidth(12f);
+            drawPaint.setStrokeWidth(60f);
         }
         else {
             drawPaint.setXfermode(null);
-            drawPaint.setStrokeWidth(4f);
+            drawPaint.setStrokeWidth(7f);
         }
     }
 
